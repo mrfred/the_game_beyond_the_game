@@ -109,8 +109,9 @@ function init()
 	fullThrottle = 0;
 	acceleration = 0;
 
-	drawWalls();
-	createGround();
+	createRandomDungeon();
+	//drawWalls();
+	//createGround();
 
 	drawTankCube();
 
@@ -137,8 +138,6 @@ function fire()
 	var userData = new Object();
 
 	userData["lifeTime"] = 50;
-
-	// life time
 	rocket.name = "rocket";
 	rocket.userData = userData;
 
@@ -172,6 +171,29 @@ function moveRockets()
 			}
 		}
 	}
+}
+
+function createRandomDungeon()
+{
+	Dungeon.Generate();
+
+	for (var i = 0; i < Dungeon.rooms.length; i++)
+	{
+		createRoom(Dungeon.rooms[i]);
+	}
+
+	// for (var y = 0; y < Dungeon.map_size; y++) 
+	// {
+ //        for (var x = 0; x < Dungeon.map_size; x++)
+ //        {
+ //        	var tile = Dungeon.map[x][y];
+ //        }
+ //    }
+}
+
+function createRoom(room)
+{
+	createGround(room.x, room.y, room.w, room.h);
 }
 
 function drawWalls()
@@ -223,13 +245,14 @@ function createWall()
 	return wall;
 }
 
-function createGround()
+function createGround(x, y, w, h)
 {
-	var geometry = new THREE.PlaneGeometry( 1000, 1000 );
+	var geometry = new THREE.PlaneGeometry( w, h, 1 );
 	var material = new THREE.MeshLambertMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
 	var plane = new THREE.Mesh( geometry, material );
 
-	//plane.position
+	plane.position.x = x;
+	plane.position.y = y;
 	
 	scene.add( plane );
 }
@@ -247,27 +270,14 @@ function drawTankCube()
 	//cube.position = new THREE.Vector3(100, 100, 100);
 
 	cube.add(gun);
+	cube.translateZ(5);
+
 	cube.add(camera);
 
 	camera.position.y = camera.position.y - 50;
 	camera.lookAt(cube.position);
 
 	scene.add( cube );
-}
-
-/**
- * draws a grid
- * @return {[type]} [description]
- */
-function drawGrid()
-{
-	var gridXY = new THREE.GridHelper(1000, 100);
-	
-	gridXY.position.set( 0,0,0 );
-	gridXY.rotation.x = Math.PI/2;
-	gridXY.setColors( new THREE.Color(0x0000FF), new THREE.Color(0x0000FF) );
-	
-	scene.add(gridXY);
 }
 
 function animate()
