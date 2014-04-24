@@ -111,10 +111,10 @@ function init()
 	acceleration = 0;
 
 	createRandomDungeon();
-	//drawWalls();
-	//createGround();
 
 	drawTankCube();
+	cube.translateY(50);
+	cube.translateX(50);
 
 	createLight();
 
@@ -125,7 +125,7 @@ function init()
 function createLight()
 {
 	var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.9 );
-	directionalLight.position.set( 0, 1, 1000 );
+	directionalLight.position.set( 0, 1, 10000 );
 
 	scene.add( directionalLight );
 }
@@ -194,19 +194,7 @@ function createRandomDungeon()
         	}
         }
     }
-}
 
-function createCorridor(corridor)
-{
-	if (corridor.turn == null)
-	{
-		createRoom(corridor.start.x, corridor.start.y, corridor.end.x, corridor.end.y + 1);
-	}
-}
-
-function createRoom(room)
-{
-	createGround(room.x, room.y, room.w, room.h);
 }
 
 function createWall(x, y)
@@ -217,6 +205,8 @@ function createWall(x, y)
 
 	wall.position.x = x * 100;
 	wall.position.y = y * 100;
+
+	world.push( wall );
 	scene.add( wall );
 }
 
