@@ -3,6 +3,7 @@
 var camera, scene, renderer;
 
 var world;
+var player;
 var cube;
 var acceleration;
 var fullThrottle;
@@ -86,14 +87,14 @@ function init()
 {
 	world = new Array();
 
-	camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000);
+	//camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000);
 	//camera.position.z = 5;
 
 	// init three.js stuff
-	// camera = new THREE.OrthographicCamera( 
-	// 	window.innerWidth / - 2, window.innerWidth / 2,
-	// 	window.innerHeight / 2, window.innerHeight / - 2,
-	// 	 0, 10000 );
+	camera = new THREE.OrthographicCamera( 
+		window.innerWidth / - 2, window.innerWidth / 2,
+		window.innerHeight / 2, window.innerHeight / - 2,
+		 1, 10000 );
 
 	camera.position.z = 30;
 
@@ -177,18 +178,30 @@ function createRandomDungeon()
 {
 	Dungeon.Generate();
 
-	for (var i = 0; i < Dungeon.rooms.length; i++)
+	for (var y = 0; y < Dungeon.map_size; y++) 
 	{
-		createRoom(Dungeon.rooms[i]);
-	}
+        for (var x = 0; x < Dungeon.map_size; x++)
+        {
+        	var tile = Dungeon.map[x][y];
 
-	// for (var y = 0; y < Dungeon.map_size; y++) 
-	// {
- //        for (var x = 0; x < Dungeon.map_size; x++)
- //        {
- //        	var tile = Dungeon.map[x][y];
- //        }
- //    }
+        	if (tile == 1)
+        	{
+        		createGround(x, y, 100, 100);
+        	}
+        	else if (tile == 2)
+        	{
+        		createWall(x, y);
+        	}
+        }
+    }
+}
+
+function createCorridor(corridor)
+{
+	if (corridor.turn == null)
+	{
+		createRoom(corridor.start.x, corridor.start.y, corridor.end.x, corridor.end.y + 1);
+	}
 }
 
 function createRoom(room)
@@ -196,53 +209,15 @@ function createRoom(room)
 	createGround(room.x, room.y, room.w, room.h);
 }
 
-function drawWalls()
+function createWall(x, y)
 {
-	var northWall = createWall();
-
-	northWall.position.z = 10;
-	northWall.position.y = 500;
-
-	scene.add(northWall);
-	world.push(northWall);
-
-	var westWall = createWall();
-
-	westWall.rotation.z = Math.PI/2;
-	westWall.position.z = 10;
-	westWall.position.x = 500;
-
-	scene.add(westWall);
-	world.push(westWall);
-
-
-	var southWall = createWall();
-
-	southWall.position.z = 10;
-	southWall.position.y = -500;
-
-	scene.add(southWall);
-	world.push(southWall);
-
-
-	var eastWall = createWall();
-
-	eastWall.rotation.z = Math.PI/2;
-	eastWall.position.z = 10;
-	eastWall.position.x = -500;
-
-	scene.add(eastWall);
-	world.push(eastWall);
-
-}
-
-function createWall()
-{
-	var geometry = new THREE.CubeGeometry( 1000, 10, 20 );
+	var geometry = new THREE.CubeGeometry( 100, 100, 50 );
 	var material = new THREE.MeshLambertMaterial( {color: 0x778899} );
 	var wall = new THREE.Mesh( geometry, material );
 
-	return wall;
+	wall.position.x = x * 100;
+	wall.position.y = y * 100;
+	scene.add( wall );
 }
 
 function createGround(x, y, w, h)
@@ -251,9 +226,8 @@ function createGround(x, y, w, h)
 	var material = new THREE.MeshLambertMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
 	var plane = new THREE.Mesh( geometry, material );
 
-	plane.position.x = x;
-	plane.position.y = y;
-	
+	plane.position.x = x * 100;
+	plane.position.y = y * 100;
 	scene.add( plane );
 }
 

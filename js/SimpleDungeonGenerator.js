@@ -9,7 +9,7 @@ var Helpers = {
 var Dungeon = {
     
     map: null,
-    map_size: 1024,
+    map_size: 128,
     rooms: [],
 
     Generate: function () {
@@ -23,8 +23,8 @@ var Dungeon = {
         }
 
         var room_count = Helpers.GetRandom(10, 20);
-        var min_size = 50;
-        var max_size = 150;
+        var min_size = 5;
+        var max_size = 10;
 
         for (var i = 0; i < room_count; i++) {
             var room = {};
