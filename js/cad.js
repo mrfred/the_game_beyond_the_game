@@ -1,13 +1,17 @@
 // GLOBALS
-
 var camera, scene, renderer;
 
 var world;
 var player;
-var cube;
+var model;
 var acceleration;
 var fullThrottle;
+var isBlocked;
 
+// Defines
+var PLAYER_SPEED = 3;
+
+var WOLRD_TILE_SIZE = 75; 
 
 // ADD EVENT HANDLER
 document.addEventListener("keydown", keydownEvent, false);
@@ -20,21 +24,32 @@ document.addEventListener("keyup", keyupEvent, false);
 
 function keydownEvent(e)
 {
+	if (isBlocked == true)
+		return;
+
 	// arrow left
 	if (e.keyCode == "37") {
-         rotateTank("left");
+		player.translateX(-PLAYER_SPEED);
+        cube.rotation.z = Math.PI/2;
+        //rotateTank("left");
     }
     // up
     else if (e.keyCode == "38") {
-        accelerateTank();
+        player.translateY(PLAYER_SPEED);
+        cube.rotation.z = 0;
+        //accelerateTank();
     }
     // right
     else if (e.keyCode == "39") {
-        rotateTank("right");
+        player.translateX(PLAYER_SPEED);
+        cube.rotation.z = - Math.PI/2;
+        //rotateTank("right");
     }
     // down
     else if (e.keyCode == "40") {
-        breakTank();
+        cube.rotation.z = Math.PI;
+        player.translateY(-PLAYER_SPEED);
+        //breakTank();
     }
     // space
     else if (e.keyCode == "32") {
@@ -96,7 +111,7 @@ function init()
 		window.innerHeight / 2, window.innerHeight / - 2,
 		 1, 10000 );
 
-	camera.position.z = 30;
+	//camera.position.z = 300;
 
 	scene = new THREE.Scene();
 	renderer = new THREE.WebGLRenderer();
@@ -109,12 +124,13 @@ function init()
 	//
 	fullThrottle = 0;
 	acceleration = 0;
+	isBlocked = false;
 
 	createRandomDungeon();
 
-	drawTankCube();
-	cube.translateY(50);
-	cube.translateX(50);
+	createPlayer();
+	player.translateY(50);
+	player.translateX(50);
 
 	createLight();
 
@@ -142,7 +158,7 @@ function fire()
 	rocket.name = "rocket";
 	rocket.userData = userData;
 
-	rocket.applyMatrix(cube.matrix);
+	rocket.applyMatrix(cube.matrixWorld);
 	scene.add(rocket);
 
 	//console.debug(cube.children.length)
@@ -199,12 +215,12 @@ function createRandomDungeon()
 
 function createWall(x, y)
 {
-	var geometry = new THREE.CubeGeometry( 100, 100, 50 );
+	var geometry = new THREE.CubeGeometry( WOLRD_TILE_SIZE, WOLRD_TILE_SIZE, WOLRD_TILE_SIZE / 2 );
 	var material = new THREE.MeshLambertMaterial( {color: 0x778899} );
 	var wall = new THREE.Mesh( geometry, material );
 
-	wall.position.x = x * 100;
-	wall.position.y = y * 100;
+	wall.position.x = x * WOLRD_TILE_SIZE;
+	wall.position.y = y * WOLRD_TILE_SIZE;
 
 	world.push( wall );
 	scene.add( wall );
@@ -216,13 +232,15 @@ function createGround(x, y, w, h)
 	var material = new THREE.MeshLambertMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
 	var plane = new THREE.Mesh( geometry, material );
 
-	plane.position.x = x * 100;
-	plane.position.y = y * 100;
+	plane.position.x = x * WOLRD_TILE_SIZE;
+	plane.position.y = y * WOLRD_TILE_SIZE;
 	scene.add( plane );
 }
 
-function drawTankCube()
+function createPlayer()
 {
+	player = new THREE.Object3D();
+
 	var geometry = new THREE.CubeGeometry( 20, 20, 10 );
 	var material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
 	cube = new THREE.Mesh( geometry, material );
@@ -231,17 +249,22 @@ function drawTankCube()
 	material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
 	gun = new THREE.Mesh( geometry, material );
 	gun.translateY(15); 
-	//cube.position = new THREE.Vector3(100, 100, 100);
+	//player.position = new THREE.Vector3(100, 100, 100);
 
 	cube.add(gun);
 	cube.translateZ(5);
 
-	cube.add(camera);
+	player.add(cube);
+	player.add(camera);
 
-	camera.position.y = camera.position.y - 50;
-	camera.lookAt(cube.position);
+	//cube.add(camera);
 
-	scene.add( cube );
+	// adjust camera position
+	camera.position.z = camera.position.z + 500;
+	camera.position.y = camera.position.y - 500;
+	camera.lookAt(player.position);
+
+	scene.add( player );
 }
 
 function animate()
@@ -272,14 +295,19 @@ function detectCollision()
 function detectTankCollision()
 {
 	var vector = getDirection(cube);
-	var ray = new THREE.Raycaster(cube.position, vector);
+	var ray = new THREE.Raycaster(player.position, vector);
 	var intersects = ray.intersectObjects(world, false);
 
 	if (intersects.length > 0) 
 	{
 	    if (intersects[0].distance < 30) 
 	    {
-	      breakTank();
+	    	isBlocked = true;
+	      //breakTank();
+	    }
+	    else
+	    {
+	    	isBlocked = false;
 	    }
 	}
 }
@@ -297,7 +325,7 @@ function detectRocketCollision()
 function getDirection(mesh)
 {
 	var matrix = new THREE.Matrix4();
-	matrix.extractRotation( cube.matrix );
+	matrix.extractRotation( cube.matrixWorld );
 
 	var direction = new THREE.Vector3( 1, 1, 0 );
 	direction.applyMatrix4(matrix);
