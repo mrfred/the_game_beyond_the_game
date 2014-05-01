@@ -4,23 +4,83 @@ var camera, scene, renderer;
 var world;
 var player;
 var model;
-var acceleration;
-var fullThrottle;
-var isBlocked;
+
+var destination;
 
 // Defines
-var PLAYER_SPEED = 3;
+var PLAYER_SPEED = 1;
 
-var WOLRD_TILE_SIZE = 75; 
+var WOLRD_TILE_SIZE = 100; 
 
 // ADD EVENT HANDLER
-document.addEventListener("keydown", keydownEvent, false);
-document.addEventListener("keyup", keyupEvent, false);
+//document.addEventListener("keydown", keydownEvent, false);
+//document.addEventListener("keyup", keyupEvent, false);
 //document.addEventListener( 'mousemove', onMouseMove, false );
-// document.addEventListener( 'mousedown', onMouseDown, false );
+document.addEventListener( 'mousedown', onMouseDown, false );
 // document.addEventListener( 'mouseup', onMouseUp, false );
 // document.addEventListener( 'mousewheel', onDocumentMouseWheel, false );
 // document.addEventListener( 'DOMMouseScroll', onDocumentMouseWheel, false );
+
+/**
+ * initilization
+ * @return {[type]} [description]
+ */
+function init() 
+{
+	world = new Array();
+
+	//camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000);
+	//camera.position.z = 5;
+	worldCoordinatesUtils = new WorldCoordinatesUtils();
+
+	// init three.js stuff
+	camera = new THREE.OrthographicCamera( 
+		window.innerWidth / - 2, window.innerWidth / 2,
+		window.innerHeight / 2, window.innerHeight / - 2,
+		 1, 10000 );
+
+	//camera.position.z = 300;
+
+	scene = new THREE.Scene();
+	renderer = new THREE.WebGLRenderer();
+
+	renderer.setSize( window.innerWidth, window.innerHeight );
+	document.body.appendChild( renderer.domElement );
+
+	createRandomDungeon();
+
+	createPlayer();
+	player.translateY(100);
+	player.translateX(100);
+	destination = player.position.clone();
+
+	destination = new THREE.Vector3();
+
+	createLight();
+
+	// GO!!
+	animate();
+}
+
+// WorldCoordinatesUtils
+function WorldCoordinatesUtils()
+{
+	this.planeZ = new THREE.Plane( new THREE.Vector3( 0, 0, 1 ), 0 );
+	this.mv = new THREE.Vector3( 0, 0, 0.5 );
+	this.projector = new THREE.Projector();
+}
+
+WorldCoordinatesUtils.prototype.getWorldCoordinates = function(mousePosition, worldPosition)
+{	
+	this.mv.x = mousePosition.x;
+	this.mv.y = mousePosition.y;
+
+	var raycaster = this.projector.pickingRay(this.mv, camera);
+	var pos = raycaster.ray.intersectPlane(this.planeZ);
+
+	worldPosition.x = pos.x;
+	worldPosition.y = pos.y;
+};
 
 function keydownEvent(e)
 {
@@ -64,78 +124,43 @@ function keyupEvent(e)
 	}
 }
 
-function breakTank()
+function onMouseDown( event )
 {
-	acceleration = 0;
+	var canvasPos = new THREE.Vector2(0, 0);
+
+	canvasPos.x = (event.clientX / window.innerWidth) * 2 - 1;
+    canvasPos.y = -(event.clientY / window.innerHeight) * 2 + 1;
+
+    worldCoordinatesUtils.getWorldCoordinates(canvasPos, destination);
+    destination.x = Math.round(destination.x);
+    destination.y = Math.round(destination.y);
+    //console.log(destination);
+
+    var direction = getDirection(cube);
+    //console.log(direction);
+
+    var mouseDir = destination.clone().sub(player.position);
+    //console.log(mouseDir);
+
+    var angle = direction.angleTo(mouseDir);
+    //console.log(angle);
+
+	var right = new THREE.Vector3();
+    right.crossVectors(direction, new THREE.Vector3(0, 0, 1));
+    //console.log(right);
+
+    var dot = right.dot(mouseDir);
+    //console.log(dot);
+    if (dot < 0)
+    	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), angle);
+    else
+    	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), -angle);    
 }
 
-function accelerateTank()
+function movePlayer()
 {
-	fullThrottle = true;
-	if (acceleration < 10.0)
-		acceleration = acceleration + 0.05;
-	//cube.translateX(1 * fullThrottle);
-}
-
-function moveTank()
-{
-	if (acceleration > 0)
-	{
-		cube.translateY(1 * acceleration);
-		acceleration = acceleration - 0.01;
-	}
-}
-
-function rotateTank(direction)
-{
-	if (direction == "left")
-		cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), 0.1);
-	else
-		cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), -0.1);
-}
-
-/**
- * initilization
- * @return {[type]} [description]
- */
-function init() 
-{
-	world = new Array();
-
-	//camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000);
-	//camera.position.z = 5;
-
-	// init three.js stuff
-	camera = new THREE.OrthographicCamera( 
-		window.innerWidth / - 2, window.innerWidth / 2,
-		window.innerHeight / 2, window.innerHeight / - 2,
-		 1, 10000 );
-
-	//camera.position.z = 300;
-
-	scene = new THREE.Scene();
-	renderer = new THREE.WebGLRenderer();
-
-	renderer.setSize( window.innerWidth, window.innerHeight );
-	document.body.appendChild( renderer.domElement );
-
-	// draw grid
-	//drawGrid();
-	//
-	fullThrottle = 0;
-	acceleration = 0;
-	isBlocked = false;
-
-	createRandomDungeon();
-
-	createPlayer();
-	player.translateY(50);
-	player.translateX(50);
-
-	createLight();
-
-	// GO!!
-	animate();
+	if (player.position.distanceTo(destination) > 1)
+		player.translateOnAxis(getDirection(cube), 2);
 }
 
 function createLight()
@@ -145,7 +170,6 @@ function createLight()
 
 	scene.add( directionalLight );
 }
-
 
 function fire()
 {
@@ -245,19 +269,19 @@ function createPlayer()
 	var material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
 	cube = new THREE.Mesh( geometry, material );
 
-	geometry = new THREE.CubeGeometry( 7.5, 20, 10 );
+	geometry = new THREE.CubeGeometry( 20, 7.5, 10 );
 	material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
 	gun = new THREE.Mesh( geometry, material );
-	gun.translateY(15); 
+	gun.translateX(15); 
 	//player.position = new THREE.Vector3(100, 100, 100);
 
 	cube.add(gun);
-	cube.translateZ(5);
+	//cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI * 1.50);
 
+	cube.translateZ(5);
+	
 	player.add(cube);
 	player.add(camera);
-
-	//cube.add(camera);
 
 	// adjust camera position
 	camera.position.z = camera.position.z + 500;
@@ -277,7 +301,7 @@ function animate()
 function update()
 {
 	detectCollision();
-	moveTank();
+	movePlayer();
 	moveRockets();
 }
 
@@ -302,19 +326,9 @@ function detectTankCollision()
 	{
 	    if (intersects[0].distance < 30) 
 	    {
-	    	isBlocked = true;
-	      //breakTank();
-	    }
-	    else
-	    {
-	    	isBlocked = false;
+	    	destination = player.position.clone();
 	    }
 	}
-}
-
-function getIntersections()
-{
-	
 }
 
 function detectRocketCollision()
@@ -325,7 +339,7 @@ function detectRocketCollision()
 function getDirection(mesh)
 {
 	var matrix = new THREE.Matrix4();
-	matrix.extractRotation( cube.matrixWorld );
+	matrix.extractRotation( mesh.matrixWorld );
 
 	var direction = new THREE.Vector3( 1, 1, 0 );
 	direction.applyMatrix4(matrix);
