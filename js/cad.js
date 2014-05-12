@@ -4,7 +4,10 @@ var camera, scene, renderer;
 var world;
 var player;
 var model;
+var startPos;
 
+var cameraRefPos;
+var canvasPos; 
 var destination;
 
 // Defines
@@ -13,7 +16,7 @@ var PLAYER_SPEED = 1;
 var WOLRD_TILE_SIZE = 100; 
 
 // ADD EVENT HANDLER
-//document.addEventListener("keydown", keydownEvent, false);
+document.addEventListener("keydown", keydownEvent, false);
 //document.addEventListener("keyup", keyupEvent, false);
 //document.addEventListener( 'mousemove', onMouseMove, false );
 document.addEventListener( 'mousedown', onMouseDown, false );
@@ -32,35 +35,87 @@ function init()
 	//camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000);
 	//camera.position.z = 5;
 	worldCoordinatesUtils = new WorldCoordinatesUtils();
+	canvasPos = new THREE.Vector2(0, 0);
 
 	// init three.js stuff
+	scene = new THREE.Scene();
+	renderer = new THREE.WebGLRenderer();
+
 	camera = new THREE.OrthographicCamera( 
 		window.innerWidth / - 2, window.innerWidth / 2,
 		window.innerHeight / 2, window.innerHeight / - 2,
 		 1, 10000 );
 
-	//camera.position.z = 300;
+	//cameraRefPos = new THREE.Vector3(0, 0, 0);
+	cameraRefPos = new THREE.Object3D();
+	cameraRefPos.position = new THREE.Vector3(0, 0, 0);
+	cameraRefPos.add(camera);
 
-	scene = new THREE.Scene();
-	renderer = new THREE.WebGLRenderer();
+	scene.add(cameraRefPos);
 
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.body.appendChild( renderer.domElement );
 
 	createRandomDungeon();
-
 	createPlayer();
-	player.translateY(100);
-	player.translateX(100);
-	destination = player.position.clone();
-
-	destination = new THREE.Vector3();
-
 	createLight();
+
+//cameraRefPos.add(camera);
+
+
+	// adjust camera
+	camera.position.z = camera.position.z + 500;
+	camera.position.y = camera.position.y - 500;
+	camera.lookAt(cameraRefPos.position);
+
+
+	startPos = new THREE.Vector3(100, 100, 5);
+	player.position = startPos.clone();
+	cameraRefPos.position = startPos.clone();
+
+
+	destination = player.position.clone();
 
 	// GO!!
 	animate();
 }
+
+function createPlayer()
+{
+	player = new THREE.Object3D();
+
+	var geometry = new THREE.CubeGeometry( 20, 20, 10 );
+	var material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
+	cube = new THREE.Mesh( geometry, material );
+
+	geometry = new THREE.CubeGeometry( 20, 7.5, 10 );
+	material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
+	gun = new THREE.Mesh( geometry, material );
+	gun.translateX(15); 
+
+	cube.add(gun);
+	//cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI * 1.0);
+
+	cube.translateZ(5);
+	
+	player.add(cube);
+	//player.add(camera);
+
+	//camera.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI * 1.75);
+
+	// adjust camera position
+	//camera.position.z = camera.position.z + 500;
+	//camera.position.y = camera.position.y - 500;
+	//camera.position.x = camera.position.x - 500;
+
+	//camera.rotation.z = - Math.PI;
+
+	//camera.lookAt(player.position);
+	//camera.position.z = camera.position.z + 500;
+
+	scene.add( player );
+}
+
 
 // WorldCoordinatesUtils
 function WorldCoordinatesUtils()
@@ -84,31 +139,28 @@ WorldCoordinatesUtils.prototype.getWorldCoordinates = function(mousePosition, wo
 
 function keydownEvent(e)
 {
-	if (isBlocked == true)
-		return;
-
 	// arrow left
 	if (e.keyCode == "37") {
-		player.translateX(-PLAYER_SPEED);
-        cube.rotation.z = Math.PI/2;
+		//player.translateX(-PLAYER_SPEED);
+        camera.rotateOnAxis(new THREE.Vector3(0, 0, 1), 0.1);
         //rotateTank("left");
     }
     // up
     else if (e.keyCode == "38") {
-        player.translateY(PLAYER_SPEED);
-        cube.rotation.z = 0;
+        //player.translateY(PLAYER_SPEED);
+        camera.rotation.z = 0;
         //accelerateTank();
     }
     // right
     else if (e.keyCode == "39") {
-        player.translateX(PLAYER_SPEED);
-        cube.rotation.z = - Math.PI/2;
+        //player.translateX(PLAYER_SPEED);
+        camera.rotateOnAxis(new THREE.Vector3(0, 0, 1), - 0.1);
         //rotateTank("right");
     }
     // down
     else if (e.keyCode == "40") {
-        cube.rotation.z = Math.PI;
-        player.translateY(-PLAYER_SPEED);
+        camera.rotation.z = Math.PI;
+        //player.translateY(-PLAYER_SPEED);
         //breakTank();
     }
     // space
@@ -126,8 +178,6 @@ function keyupEvent(e)
 
 function onMouseDown( event )
 {
-	var canvasPos = new THREE.Vector2(0, 0);
-
 	canvasPos.x = (event.clientX / window.innerWidth) * 2 - 1;
     canvasPos.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
@@ -154,13 +204,22 @@ function onMouseDown( event )
     if (dot < 0)
     	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), angle);
     else
-    	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), -angle);    
+    	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), -angle);
+
 }
 
 function movePlayer()
 {
 	if (player.position.distanceTo(destination) > 1)
+	{
+		//console.log(player.position.distanceTo(cameraRefPos.position))
+		if (player.position.distanceTo(cameraRefPos.position) > 150
+			&& destination.distanceTo(cameraRefPos.position) > 150)
+		{
+			cameraRefPos.translateOnAxis(getDirection(cube), 2);
+		}
 		player.translateOnAxis(getDirection(cube), 2);
+	}
 }
 
 function createLight()
@@ -261,35 +320,6 @@ function createGround(x, y, w, h)
 	scene.add( plane );
 }
 
-function createPlayer()
-{
-	player = new THREE.Object3D();
-
-	var geometry = new THREE.CubeGeometry( 20, 20, 10 );
-	var material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
-	cube = new THREE.Mesh( geometry, material );
-
-	geometry = new THREE.CubeGeometry( 20, 7.5, 10 );
-	material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
-	gun = new THREE.Mesh( geometry, material );
-	gun.translateX(15); 
-	//player.position = new THREE.Vector3(100, 100, 100);
-
-	cube.add(gun);
-	//cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI * 1.50);
-
-	cube.translateZ(5);
-	
-	player.add(cube);
-	player.add(camera);
-
-	// adjust camera position
-	camera.position.z = camera.position.z + 500;
-	camera.position.y = camera.position.y - 500;
-	camera.lookAt(player.position);
-
-	scene.add( player );
-}
 
 function animate()
 {
@@ -302,7 +332,13 @@ function update()
 {
 	detectCollision();
 	movePlayer();
+	//moceCamera();
 	moveRockets();
+}
+
+function moveCamera()
+{
+	
 }
 
 function render()
@@ -341,7 +377,7 @@ function getDirection(mesh)
 	var matrix = new THREE.Matrix4();
 	matrix.extractRotation( mesh.matrixWorld );
 
-	var direction = new THREE.Vector3( 1, 1, 0 );
+	var direction = new THREE.Vector3( 1, 0, 0 );
 	direction.applyMatrix4(matrix);
 
 	return direction;
