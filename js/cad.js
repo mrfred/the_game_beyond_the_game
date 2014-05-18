@@ -5,9 +5,11 @@ var world;
 var player;
 var model;
 var startPos;
-
 var cameraRefPos;
-var canvasPos; 
+var grid;
+
+var canvasPos;
+var worldPos;
 var destination;
 
 // Defines
@@ -31,9 +33,8 @@ document.addEventListener( 'mousedown', onMouseDown, false );
 function init() 
 {
 	world = new Array();
+	grid = [];
 
-	//camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000);
-	//camera.position.z = 5;
 	worldCoordinatesUtils = new WorldCoordinatesUtils();
 	canvasPos = new THREE.Vector2(0, 0);
 
@@ -46,35 +47,29 @@ function init()
 		window.innerHeight / 2, window.innerHeight / - 2,
 		 1, 10000 );
 
-	//cameraRefPos = new THREE.Vector3(0, 0, 0);
-	cameraRefPos = new THREE.Object3D();
-	cameraRefPos.position = new THREE.Vector3(0, 0, 0);
-	cameraRefPos.add(camera);
-
-	scene.add(cameraRefPos);
-
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.body.appendChild( renderer.domElement );
 
+	// create game
 	createRandomDungeon();
 	createPlayer();
 	createLight();
 
-//cameraRefPos.add(camera);
-
-
 	// adjust camera
+	cameraRefPos = new THREE.Object3D();
+	cameraRefPos.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI * 0.25);
+	cameraRefPos.add(camera);
+
 	camera.position.z = camera.position.z + 500;
 	camera.position.y = camera.position.y - 500;
-	camera.lookAt(cameraRefPos.position);
+	camera.lookAt(player.position);
 
+	player.add(cameraRefPos);
 
 	startPos = new THREE.Vector3(100, 100, 5);
 	player.position = startPos.clone();
-	cameraRefPos.position = startPos.clone();
-
-
 	destination = player.position.clone();
+	worldPos = player.position.clone();
 
 	// GO!!
 	animate();
@@ -99,20 +94,6 @@ function createPlayer()
 	cube.translateZ(5);
 	
 	player.add(cube);
-	//player.add(camera);
-
-	//camera.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI * 1.75);
-
-	// adjust camera position
-	//camera.position.z = camera.position.z + 500;
-	//camera.position.y = camera.position.y - 500;
-	//camera.position.x = camera.position.x - 500;
-
-	//camera.rotation.z = - Math.PI;
-
-	//camera.lookAt(player.position);
-	//camera.position.z = camera.position.z + 500;
-
 	scene.add( player );
 }
 
@@ -141,27 +122,20 @@ function keydownEvent(e)
 {
 	// arrow left
 	if (e.keyCode == "37") {
-		//player.translateX(-PLAYER_SPEED);
-        camera.rotateOnAxis(new THREE.Vector3(0, 0, 1), 0.1);
-        //rotateTank("left");
+        cameraRefPos.rotateOnAxis(new THREE.Vector3(0, 0, 1), 0.1);
     }
     // up
     else if (e.keyCode == "38") {
-        //player.translateY(PLAYER_SPEED);
-        camera.rotation.z = 0;
-        //accelerateTank();
+        cameraRefPos.translateZ(1);
+
     }
     // right
     else if (e.keyCode == "39") {
-        //player.translateX(PLAYER_SPEED);
-        camera.rotateOnAxis(new THREE.Vector3(0, 0, 1), - 0.1);
-        //rotateTank("right");
+        cameraRefPos.rotateOnAxis(new THREE.Vector3(0, 0, 1), - 0.1);
     }
     // down
     else if (e.keyCode == "40") {
-        camera.rotation.z = Math.PI;
-        //player.translateY(-PLAYER_SPEED);
-        //breakTank();
+        cameraRefPos.translateZ(-1);
     }
     // space
     else if (e.keyCode == "32") {
@@ -169,27 +143,36 @@ function keydownEvent(e)
     }
 }
 
-function keyupEvent(e)
-{
-	if (e.keyCode == "38") {
-		fullThrottle = false;
-	}
-}
-
 function onMouseDown( event )
 {
 	canvasPos.x = (event.clientX / window.innerWidth) * 2 - 1;
     canvasPos.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    worldCoordinatesUtils.getWorldCoordinates(canvasPos, destination);
-    destination.x = Math.round(destination.x);
-    destination.y = Math.round(destination.y);
+    worldCoordinatesUtils.getWorldCoordinates(canvasPos, worldPos);
     //console.log(destination);
 
-    var direction = getDirection(cube);
+    rotatePlayer(worldPos);
+
+    if (event.button == 0)
+    {
+    	if (isDirectPath(player, worldPos))
+    	{
+    		destination.x = Math.round(worldPos.x);
+    		destination.y = Math.round(worldPos.y);
+    	}
+    }
+    else
+    {
+    	destination = player.position.clone();
+    }
+}
+
+function rotatePlayer(clickPosition)
+{
+	var direction = getDirection(cube);
     //console.log(direction);
 
-    var mouseDir = destination.clone().sub(player.position);
+    var mouseDir = clickPosition.clone().sub(player.position);
     //console.log(mouseDir);
 
     var angle = direction.angleTo(mouseDir);
@@ -205,21 +188,12 @@ function onMouseDown( event )
     	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), angle);
     else
     	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), -angle);
-
 }
 
 function movePlayer()
 {
 	if (player.position.distanceTo(destination) > 1)
-	{
-		//console.log(player.position.distanceTo(cameraRefPos.position))
-		if (player.position.distanceTo(cameraRefPos.position) > 150
-			&& destination.distanceTo(cameraRefPos.position) > 150)
-		{
-			cameraRefPos.translateOnAxis(getDirection(cube), 2);
-		}
 		player.translateOnAxis(getDirection(cube), 2);
-	}
 }
 
 function createLight()
@@ -261,7 +235,7 @@ function moveRockets()
 		{
 			if (child.userData["lifeTime"] > 0)
 			{
-				child.translateY(5);
+				child.translateX(5);
 				//console.debug("time: " + child.userData["lifeTime"]);
 				child.userData["lifeTime"] = child.userData["lifeTime"] - 1;
 			}
@@ -277,19 +251,26 @@ function createRandomDungeon()
 {
 	Dungeon.Generate();
 
-	for (var y = 0; y < Dungeon.map_size; y++) 
+	for (var x = 0; x < Dungeon.map_size; x++) 
 	{
-        for (var x = 0; x < Dungeon.map_size; x++)
+		grid[x] = [];	
+        for (var y = 0; y < Dungeon.map_size; y++)
         {
         	var tile = Dungeon.map[x][y];
 
         	if (tile == 1)
         	{
         		createGround(x, y, 100, 100);
+        		grid[x][y] = 0;
         	}
         	else if (tile == 2)
         	{
         		createWall(x, y);
+        		grid[x][y] = 1;
+        	}
+        	else
+        	{
+        		grid[x][y] = 1;
         	}
         }
     }
@@ -350,6 +331,29 @@ function detectCollision()
 {
 	detectTankCollision();
 	//console.debug("direction: " + vector.x + " " + vector.y + " " + vector.z);
+}
+
+function isDirectPath(player, clickPosition)
+{
+	var isDirectPath = true;
+	var direction = getDirection(cube);
+	var ray = new THREE.Raycaster(player.position, direction);
+	var intersects = ray.intersectObjects(world, false);
+	var pathDistance = player.position.distanceTo(clickPosition);
+
+	//console.log(player.position);
+	console.log(intersects[0].distance + " " + pathDistance)
+
+	if (intersects.length > 0) 
+		if (intersects[0].distance < pathDistance) 
+	    	isDirectPath = false;
+
+	return isDirectPath;
+}
+
+function findPath(player, clickPosition)
+{
+
 }
 
 function detectTankCollision()
