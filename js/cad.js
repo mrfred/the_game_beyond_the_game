@@ -1,20 +1,23 @@
 // GLOBALS
 var camera, scene, renderer;
 
+// world
 var world;
-var player;
-var model;
-var startPos;
-var cameraRefPos;
 var grid;
 
+// player 
+var player;
+var startPos;
+
+// camera
+var cameraRefPos;
+
+// position handling
 var canvasPos;
 var worldPos;
-var destination;
 
 // Defines
 var PLAYER_SPEED = 1;
-
 var WOLRD_TILE_SIZE = 100; 
 
 // ADD EVENT HANDLER
@@ -42,18 +45,34 @@ function init()
 	scene = new THREE.Scene();
 	renderer = new THREE.WebGLRenderer();
 
-	camera = new THREE.OrthographicCamera( 
-		window.innerWidth / - 2, window.innerWidth / 2,
-		window.innerHeight / 2, window.innerHeight / - 2,
-		 1, 10000 );
-
 	renderer.setSize( window.innerWidth, window.innerHeight );
 	document.body.appendChild( renderer.domElement );
 
 	// create game
 	createRandomDungeon();
-	createPlayer();
+	player = new Player();
+	scene.add(player.object3d);
+	
+	createCamera(player);
 	createLight();
+
+	// set start position
+	startPos = new THREE.Vector3(100, 100, 5);
+	player.object3d.position = startPos.clone();
+	
+	player.destination = player.object3d.position.clone();
+	worldPos = player.object3d.position.clone();
+
+	// GO!!
+	animate();
+}
+
+function createCamera(player)
+{
+	camera = new THREE.OrthographicCamera( 
+		window.innerWidth / - 2, window.innerWidth / 2,
+		window.innerHeight / 2, window.innerHeight / - 2,
+		 1, 10000 );
 
 	// adjust camera
 	cameraRefPos = new THREE.Object3D();
@@ -62,61 +81,10 @@ function init()
 
 	camera.position.z = camera.position.z + 500;
 	camera.position.y = camera.position.y - 500;
-	camera.lookAt(player.position);
+	camera.lookAt(player.object3d.position);
 
-	player.add(cameraRefPos);
-
-	startPos = new THREE.Vector3(100, 100, 5);
-	player.position = startPos.clone();
-	destination = player.position.clone();
-	worldPos = player.position.clone();
-
-	// GO!!
-	animate();
+	player.object3d.add(cameraRefPos);
 }
-
-function createPlayer()
-{
-	player = new THREE.Object3D();
-
-	var geometry = new THREE.CubeGeometry( 20, 20, 10 );
-	var material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
-	cube = new THREE.Mesh( geometry, material );
-
-	geometry = new THREE.CubeGeometry( 20, 7.5, 10 );
-	material = new THREE.MeshLambertMaterial( {color: 0x00ff00} );
-	gun = new THREE.Mesh( geometry, material );
-	gun.translateX(15); 
-
-	cube.add(gun);
-	//cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI * 1.0);
-
-	cube.translateZ(5);
-	
-	player.add(cube);
-	scene.add( player );
-}
-
-
-// WorldCoordinatesUtils
-function WorldCoordinatesUtils()
-{
-	this.planeZ = new THREE.Plane( new THREE.Vector3( 0, 0, 1 ), 0 );
-	this.mv = new THREE.Vector3( 0, 0, 0.5 );
-	this.projector = new THREE.Projector();
-}
-
-WorldCoordinatesUtils.prototype.getWorldCoordinates = function(mousePosition, worldPosition)
-{	
-	this.mv.x = mousePosition.x;
-	this.mv.y = mousePosition.y;
-
-	var raycaster = this.projector.pickingRay(this.mv, camera);
-	var pos = raycaster.ray.intersectPlane(this.planeZ);
-
-	worldPosition.x = pos.x;
-	worldPosition.y = pos.y;
-};
 
 function keydownEvent(e)
 {
@@ -151,49 +119,21 @@ function onMouseDown( event )
     worldCoordinatesUtils.getWorldCoordinates(canvasPos, worldPos);
     //console.log(destination);
 
-    rotatePlayer(worldPos);
+    player.lookAt(worldPos);
+    //rotatePlayer(worldPos);
 
     if (event.button == 0)
     {
-    	if (isDirectPath(player, worldPos))
+    	if (player.isDirectPath(worldPos, world))
     	{
-    		destination.x = Math.round(worldPos.x);
-    		destination.y = Math.round(worldPos.y);
+    		player.destination.x = Math.round(worldPos.x);
+    		player.destination.y = Math.round(worldPos.y);
     	}
     }
     else
     {
-    	destination = player.position.clone();
+    	player.destination = player.object3d.position.clone();
     }
-}
-
-function rotatePlayer(clickPosition)
-{
-	var direction = getDirection(cube);
-    //console.log(direction);
-
-    var mouseDir = clickPosition.clone().sub(player.position);
-    //console.log(mouseDir);
-
-    var angle = direction.angleTo(mouseDir);
-    //console.log(angle);
-
-	var right = new THREE.Vector3();
-    right.crossVectors(direction, new THREE.Vector3(0, 0, 1));
-    //console.log(right);
-
-    var dot = right.dot(mouseDir);
-    //console.log(dot);
-    if (dot < 0)
-    	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), angle);
-    else
-    	cube.rotateOnAxis(new THREE.Vector3(0, 0, 1), -angle);
-}
-
-function movePlayer()
-{
-	if (player.position.distanceTo(destination) > 1)
-		player.translateOnAxis(getDirection(cube), 2);
 }
 
 function createLight()
@@ -311,10 +251,10 @@ function animate()
 
 function update()
 {
-	detectCollision();
-	movePlayer();
+	player.move();
+	player.detectCollision(world);
 	//moceCamera();
-	moveRockets();
+	//moveRockets();
 }
 
 function moveCamera()
@@ -325,64 +265,4 @@ function moveCamera()
 function render()
 {
 	renderer.render( scene, camera );
-}
-
-function detectCollision()
-{
-	detectTankCollision();
-	//console.debug("direction: " + vector.x + " " + vector.y + " " + vector.z);
-}
-
-function isDirectPath(player, clickPosition)
-{
-	var isDirectPath = true;
-	var direction = getDirection(cube);
-	var ray = new THREE.Raycaster(player.position, direction);
-	var intersects = ray.intersectObjects(world, false);
-	var pathDistance = player.position.distanceTo(clickPosition);
-
-	//console.log(player.position);
-	console.log(intersects[0].distance + " " + pathDistance)
-
-	if (intersects.length > 0) 
-		if (intersects[0].distance < pathDistance) 
-	    	isDirectPath = false;
-
-	return isDirectPath;
-}
-
-function findPath(player, clickPosition)
-{
-
-}
-
-function detectTankCollision()
-{
-	var vector = getDirection(cube);
-	var ray = new THREE.Raycaster(player.position, vector);
-	var intersects = ray.intersectObjects(world, false);
-
-	if (intersects.length > 0) 
-	{
-	    if (intersects[0].distance < 30) 
-	    {
-	    	destination = player.position.clone();
-	    }
-	}
-}
-
-function detectRocketCollision()
-{
-
-}
-
-function getDirection(mesh)
-{
-	var matrix = new THREE.Matrix4();
-	matrix.extractRotation( mesh.matrixWorld );
-
-	var direction = new THREE.Vector3( 1, 0, 0 );
-	direction.applyMatrix4(matrix);
-
-	return direction;
 }
