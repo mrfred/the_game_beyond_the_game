@@ -7,6 +7,8 @@ function Player () {
 	this.object3d = null;
 	this.mesh = null;
 	this.destination = null;
+	this.path = new Array();
+	this.currentPathDestination = null;
 
 	this.create3dObject();
 
@@ -34,6 +36,54 @@ Player.prototype = {
 		
 		this.object3d = new THREE.Object3D();
 		this.object3d.add(this.mesh);
+	},
+
+	setPath : function (path)
+	{
+		this.path = path;
+	},
+
+	calculatePath : function (position, world)
+	{
+		if(this.isDirectPath(position, world))
+		{
+			this.currentPathDestination = position;
+		}
+		else
+		{
+
+		}
+	},
+
+	addPath : function (position)
+	{
+		console.log("paths: " + this.path.length);
+		if (this.currentPathDestination == null)
+			this.currentPathDestination = position;
+		else
+			this.path.push(position);
+	},
+
+	moveOnPath : function ()
+	{
+		if (this.currentPathDestination != null)
+		{
+			//console.log(this.object3d.position.distanceTo(this.currentPathDestination));
+			if (this.object3d.position.distanceTo(this.currentPathDestination) > 6)
+				this.object3d.translateOnAxis(this.getDirection(), 2);
+			else
+				this.currentPathDestination = null;
+		}
+		else
+		{
+			if (this.path.length > 0)
+			{
+				this.currentPathDestination = this.path.pop();
+				this.lookAt(this.currentPathDestination);
+			}
+			else
+				this.currentPathDestination = null;
+		}
 	},
 
 	move : function ()
@@ -75,7 +125,7 @@ Player.prototype = {
 		var pathDistance = this.object3d.position.distanceTo(target);
 
 		//console.log(player.position);
-		console.log(intersects[0].distance + " " + pathDistance)
+		//console.log(intersects[0].distance + " " + pathDistance)
 
 		if (intersects.length > 0) 
 			if (intersects[0].distance < pathDistance) 
@@ -105,7 +155,7 @@ Player.prototype = {
 		{
 		    if (intersects[0].distance < 30) 
 		    {
-		    	this.destination = this.object3d.position.clone();
+		    	this.currentPathDestination = null;
 		    }
 		}
 	}

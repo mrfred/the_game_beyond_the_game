@@ -8,6 +8,7 @@ var grid;
 // player 
 var player;
 var startPos;
+var buildPath;
 
 // camera
 var cameraRefPos;
@@ -22,7 +23,7 @@ var WOLRD_TILE_SIZE = 100;
 
 // ADD EVENT HANDLER
 document.addEventListener("keydown", keydownEvent, false);
-//document.addEventListener("keyup", keyupEvent, false);
+document.addEventListener("keyup", keyupEvent, false);
 //document.addEventListener( 'mousemove', onMouseMove, false );
 document.addEventListener( 'mousedown', onMouseDown, false );
 // document.addEventListener( 'mouseup', onMouseUp, false );
@@ -52,6 +53,7 @@ function init()
 	createRandomDungeon();
 	player = new Player();
 	scene.add(player.object3d);
+	buildPath = false;
 	
 	createCamera(player);
 	createLight();
@@ -88,6 +90,8 @@ function createCamera(player)
 
 function keydownEvent(e)
 {
+	//console.log("keycode :" + e.keyCode);
+
 	// arrow left
 	if (e.keyCode == "37") {
         cameraRefPos.rotateOnAxis(new THREE.Vector3(0, 0, 1), 0.1);
@@ -109,6 +113,16 @@ function keydownEvent(e)
     else if (e.keyCode == "32") {
         fire();
     }
+    else if (e.keyCode == "17") {
+    	buildPath = true;
+    }
+}
+
+function keyupEvent(e)
+{
+	if (e.keyCode == "17") {
+    	buildPath = false;
+    }
 }
 
 function onMouseDown( event )
@@ -122,24 +136,52 @@ function onMouseDown( event )
     player.lookAt(worldPos);
     //rotatePlayer(worldPos);
 
-    if (event.button == 0)
+	var nextPosition = new THREE.Vector3();
+	nextPosition.x = Math.round(worldPos.x);
+	nextPosition.y = Math.round(worldPos.y);
+
+    // if (event.button == 0)
+    // {
+    // 	if (player.isDirectPath(worldPos, world))
+    // 	{
+    // 		player.destination.x = Math.round(worldPos.x);
+    // 		player.destination.y = Math.round(worldPos.y);
+    // 	}
+    // }
+    // else
+    if (buildPath == true)
     {
-    	if (player.isDirectPath(worldPos, world))
-    	{
-    		player.destination.x = Math.round(worldPos.x);
-    		player.destination.y = Math.round(worldPos.y);
-    	}
+    	addMarker(nextPosition, 0x00ff00);
+    	player.addPath(nextPosition);		
     }
     else
     {
-    	player.destination = player.object3d.position.clone();
+    	addMarker(nextPosition, 0x0000ff);	
+    	player.calculatePath(nextPosition, world);
+    	//player.destination = player.object3d.position.clone();
     }
+}
+
+function addMarker(position, color)
+{
+	var material = new THREE.MeshBasicMaterial({ color: color });
+	var radius = 5;
+	var segments = 32;
+	var circleGeometry = new THREE.CircleGeometry( radius, segments );
+	var circle = new THREE.Mesh( circleGeometry, material );
+	
+	circle.position = position;
+	circle.position.z = 1;
+
+	scene.add( circle );
 }
 
 function createLight()
 {
 	var directionalLight = new THREE.DirectionalLight( 0xffffff, 0.9 );
-	directionalLight.position.set( 0, 1, 10000 );
+	directionalLight.position.set( 0,
+
+	 1, 10000 );
 
 	scene.add( directionalLight );
 }
@@ -241,7 +283,6 @@ function createGround(x, y, w, h)
 	scene.add( plane );
 }
 
-
 function animate()
 {
     requestAnimationFrame( animate );
@@ -251,7 +292,7 @@ function animate()
 
 function update()
 {
-	player.move();
+	player.moveOnPath();
 	player.detectCollision(world);
 	//moceCamera();
 	//moveRockets();
