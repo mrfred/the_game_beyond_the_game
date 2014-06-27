@@ -58,9 +58,9 @@ Player.prototype = {
 	addPath : function (position)
 	{
 		console.log("paths: " + this.path.length);
-		if (this.currentPathDestination == null)
-			this.currentPathDestination = position;
-		else
+		//if (this.currentPathDestination == null)
+		//	this.currentPathDestination = position;
+		//else
 			this.path.push(position);
 	},
 
@@ -78,7 +78,7 @@ Player.prototype = {
 		{
 			if (this.path.length > 0)
 			{
-				this.currentPathDestination = this.path.pop();
+				this.currentPathDestination = this.path.shift();
 				this.lookAt(this.currentPathDestination);
 			}
 			else

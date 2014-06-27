@@ -9,6 +9,7 @@ var grid;
 var player;
 var startPos;
 var buildPath;
+var marker;
 
 // camera
 var cameraRefPos;
@@ -37,6 +38,7 @@ document.addEventListener( 'mousedown', onMouseDown, false );
 function init() 
 {
 	world = new Array();
+	marker = new Array();
 	grid = [];
 
 	worldCoordinatesUtils = new WorldCoordinatesUtils();
@@ -122,6 +124,7 @@ function keyupEvent(e)
 {
 	if (e.keyCode == "17") {
     	buildPath = false;
+    	marker.length = 0;
     }
 }
 
@@ -164,16 +167,34 @@ function onMouseDown( event )
 
 function addMarker(position, color)
 {
+	// draw circle
 	var material = new THREE.MeshBasicMaterial({ color: color });
 	var radius = 5;
 	var segments = 32;
 	var circleGeometry = new THREE.CircleGeometry( radius, segments );
 	var circle = new THREE.Mesh( circleGeometry, material );
-	
+
 	circle.position = position;
 	circle.position.z = 1;
 
 	scene.add( circle );
+
+	// draw line between circles
+	if (marker.length > 0)
+	{
+		prevMarkerPosition = marker[marker.length - 1];
+
+		var material = new THREE.LineBasicMaterial({ color: color });
+		var geometry = new THREE.Geometry();
+		
+		geometry.vertices.push( prevMarkerPosition );
+		geometry.vertices.push( position );
+		
+		var line = new THREE.Line( geometry, material ); 
+		
+		scene.add( line );
+	}
+	marker.push( position );
 }
 
 function createLight()
@@ -227,6 +248,29 @@ function moveRockets()
 			}
 		}
 	}
+}
+
+function deleteTempObjects()
+{
+	var child;
+	//console.debug(scene.children.length);
+
+	for (var i = 0; i < scene.children.length; i++)
+	{
+		child = scene.children[i];
+		//console.debug(child);
+		if (child.name == "temp")
+		{
+			if (child.userData["lifeTime"] > 0)
+			{
+				child.userData["lifeTime"] = child.userData["lifeTime"] - 1;
+			}
+			else
+			{
+				scene.remove(child);
+			}
+		}
+	}	
 }
 
 function createRandomDungeon()
@@ -292,7 +336,8 @@ function animate()
 
 function update()
 {
-	player.moveOnPath();
+	if (buildPath != true)
+		player.moveOnPath();
 	player.detectCollision(world);
 	//moceCamera();
 	//moveRockets();
