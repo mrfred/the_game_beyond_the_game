@@ -10,6 +10,7 @@ var player;
 var startPos;
 var buildPath;
 var marker;
+var currentMarker;
 
 // camera
 var cameraRefPos;
@@ -39,6 +40,7 @@ function init()
 {
 	world = new Array();
 	marker = new Array();
+	currentMarker = null;
 	grid = [];
 
 	worldCoordinatesUtils = new WorldCoordinatesUtils();
@@ -101,7 +103,6 @@ function keydownEvent(e)
     // up
     else if (e.keyCode == "38") {
         cameraRefPos.translateZ(1);
-
     }
     // right
     else if (e.keyCode == "39") {
@@ -134,38 +135,59 @@ function onMouseDown( event )
     canvasPos.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
     worldCoordinatesUtils.getWorldCoordinates(canvasPos, worldPos);
-    //console.log(destination);
-
-    player.lookAt(worldPos);
-    //rotatePlayer(worldPos);
 
 	var nextPosition = new THREE.Vector3();
 	nextPosition.x = Math.round(worldPos.x);
 	nextPosition.y = Math.round(worldPos.y);
 
-    // if (event.button == 0)
-    // {
-    // 	if (player.isDirectPath(worldPos, world))
-    // 	{
-    // 		player.destination.x = Math.round(worldPos.x);
-    // 		player.destination.y = Math.round(worldPos.y);
-    // 	}
-    // }
-    // else
     if (buildPath == true)
     {
-    	addMarker(nextPosition, 0x00ff00);
+    	addMarker(nextPosition, 0x00ff00, true);
     	player.addPath(nextPosition);		
     }
     else
     {
-    	addMarker(nextPosition, 0x0000ff);	
+    	addMarker(nextPosition, 0x0000ff, false);	
+    	player.lookAt(worldPos);
     	player.calculatePath(nextPosition, world);
-    	//player.destination = player.object3d.position.clone();
     }
 }
 
-function addMarker(position, color)
+function addMarker(position, color, drawLine)
+{
+	if (drawLine == false)
+	{
+		if (currentMarker == null)
+		{
+			currentMarker = createMarker( color );
+			scene.add( currentMarker );
+		}
+		currentMarker.position = position;
+		currentMarker.position.z = 1;
+	}
+	else
+	{
+		scene.remove( currentMarker );
+		currentMarker = null;
+
+		var pathMarker = createMarker( color );
+		scene.add( pathMarker );
+		pathMarker.position = position;
+		pathMarker.position.z = 1;
+
+		// draw line between circles
+		if (marker.length > 0)
+		{
+			prevMarkerPosition = marker[marker.length - 1];
+			var line = createLine( prevMarkerPosition, position, color );
+					
+			scene.add( line );
+		}
+		marker.push( position );
+	}
+}
+
+function createMarker(color)
 {
 	// draw circle
 	var material = new THREE.MeshBasicMaterial({ color: color });
@@ -174,27 +196,20 @@ function addMarker(position, color)
 	var circleGeometry = new THREE.CircleGeometry( radius, segments );
 	var circle = new THREE.Mesh( circleGeometry, material );
 
-	circle.position = position;
-	circle.position.z = 1;
+	return circle;
+}
 
-	scene.add( circle );
+function createLine(start, end, color)
+{
+	var material = new THREE.LineBasicMaterial({ color: color });
+	var geometry = new THREE.Geometry();
+	
+	geometry.vertices.push( start );
+	geometry.vertices.push( end );
+	
+	var line = new THREE.Line( geometry, material ); 
 
-	// draw line between circles
-	if (marker.length > 0)
-	{
-		prevMarkerPosition = marker[marker.length - 1];
-
-		var material = new THREE.LineBasicMaterial({ color: color });
-		var geometry = new THREE.Geometry();
-		
-		geometry.vertices.push( prevMarkerPosition );
-		geometry.vertices.push( position );
-		
-		var line = new THREE.Line( geometry, material ); 
-		
-		scene.add( line );
-	}
-	marker.push( position );
+	return line;
 }
 
 function createLight()
