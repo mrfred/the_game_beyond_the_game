@@ -25,4 +25,18 @@ WorldCoordinatesUtils.prototype = {
 		oWorldPosition.x = pos.x;
 		oWorldPosition.y = pos.y;
 	}
+	
+	function getWorldObject(iMousePosition, world)
+	{
+		this.mv.x = iMousePosition.x;
+		this.mv.y = iMousePosition.y;
+	
+		var ray = this.projector.pickingRay(this.mv, camera);
+		var intersects = ray.intersectObjects(world, false);
+	
+		if (intersects.length > 0)
+			return intersects[0];
+
+		return null;
+	}
 }
