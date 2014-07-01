@@ -26,7 +26,7 @@ WorldCoordinatesUtils.prototype = {
 		oWorldPosition.y = pos.y;
 	}
 	
-	function getWorldObject(iMousePosition, world)
+	getWorldObject: function (iMousePosition, world)
 	{
 		this.mv.x = iMousePosition.x;
 		this.mv.y = iMousePosition.y;
