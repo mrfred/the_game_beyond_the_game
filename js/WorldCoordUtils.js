@@ -14,17 +14,20 @@ WorldCoordinatesUtils.prototype = {
 
 	constructor : WorldCoordinatesUtils,
 
-	getWorldCoordinates: function (iMousePosition, oWorldPosition)
+	getWorldCoordinates: function (iMousePosition)
 	{	
+		var worldPosition = new THREE.Vector3(0, 0, 5);
 		this.mv.x = iMousePosition.x;
 		this.mv.y = iMousePosition.y;
 
 		var raycaster = this.projector.pickingRay(this.mv, camera);
 		var pos = raycaster.ray.intersectPlane(this.planeZ);
 
-		oWorldPosition.x = pos.x;
-		oWorldPosition.y = pos.y;
-	}
+		worldPosition.x = pos.x;
+		worldPosition.y = pos.y;
+
+		return worldPosition;
+	},
 	
 	getWorldObject: function (iMousePosition, world)
 	{
@@ -35,7 +38,7 @@ WorldCoordinatesUtils.prototype = {
 		var intersects = ray.intersectObjects(world, false);
 	
 		if (intersects.length > 0)
-			return intersects[0];
+			return intersects[0].object;
 
 		return null;
 	}

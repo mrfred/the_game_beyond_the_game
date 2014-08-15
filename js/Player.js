@@ -57,7 +57,7 @@ Player.prototype = {
 
 	addPath : function (position)
 	{
-		console.log("paths: " + this.path.length);
+		//console.log("paths: " + this.path.length);
 		//if (this.currentPathDestination == null)
 		//	this.currentPathDestination = position;
 		//else

@@ -3,7 +3,11 @@ var camera, scene, renderer;
 
 // world
 var world;
+var ground;
+
+// pathfinding
 var grid;
+var finder;
 
 // player 
 var player;
@@ -39,9 +43,9 @@ document.addEventListener( 'mousedown', onMouseDown, false );
 function init() 
 {
 	world = new Array();
+	ground = new Array();
 	marker = new Array();
 	currentMarker = null;
-	grid = [];
 
 	worldCoordinatesUtils = new WorldCoordinatesUtils();
 	canvasPos = new THREE.Vector2(0, 0);
@@ -134,7 +138,7 @@ function onMouseDown( event )
 	canvasPos.x = (event.clientX / window.innerWidth) * 2 - 1;
     canvasPos.y = -(event.clientY / window.innerHeight) * 2 + 1;
 
-    worldCoordinatesUtils.getWorldCoordinates(canvasPos, worldPos);
+    worldPos = worldCoordinatesUtils.getWorldCoordinates(canvasPos);
 
 	var nextPosition = new THREE.Vector3();
 	nextPosition.x = Math.round(worldPos.x);
@@ -147,10 +151,75 @@ function onMouseDown( event )
     }
     else
     {
-    	addMarker(nextPosition, 0x0000ff, false);	
-    	player.lookAt(worldPos);
-    	player.calculatePath(nextPosition, world);
+    	if (player.isDirectPath(nextPosition, world))
+    	{
+    		addMarker(nextPosition, 0x0000ff, false);	
+    		player.lookAt(worldPos);
+    		player.currentPathDestination = nextPosition;
+    	}
+    	else
+    	{
+    		calcPath(canvasPos);
+    		//player.calculatePath(nextPosition, world);
+    	}
     }
+    //calcPath(canvasPos);
+}
+
+function isInsideTile(element)
+{
+	var elemPosX = element.position.x;
+	var elemPosY = element.position.y;
+	var elemHeight = element.geometry.height;
+	var elemWidth = element.geometry.width;
+
+	var posX = player.object3d.position.x;
+	var posY = player.object3d.position.y;
+
+	if ((posX >= elemPosX && posX < (elemPosX + elemWidth)) && (posY >= elemPosY && posY < (elemPosY + elemHeight)))
+		return true;
+	else
+		return false;
+}
+
+function calcPath(mousePosition)
+{
+	var endGroundTile = worldCoordinatesUtils.getWorldObject(mousePosition, ground);
+	var startGroundTile = ground.filter(isInsideTile)[0];
+
+	var startX = startGroundTile.position.x / WOLRD_TILE_SIZE;
+	var startY = startGroundTile.position.y / WOLRD_TILE_SIZE;
+	
+	var endX = endGroundTile.position.x / WOLRD_TILE_SIZE;
+	var endY = endGroundTile.position.y / WOLRD_TILE_SIZE;
+
+	//gridBackUp = grid.clone();
+	var path = finder.findPath(startX, startY, endX, endY, grid.clone());
+	var newPath = PF.Util.compressPath(path);
+	//var newPath = PF.Util.smoothenPath(grid, path);
+
+	//console.log(path);
+
+	for (i = 0; i < marker.length; i++)
+	{
+		scene.remove(marker[i]);
+		marker[i] = null;
+	}
+	marker.length = 0;
+
+	player.currentPathDestination = null;
+	player.path.length = 0;
+
+	for (i = 1; i < newPath.length; i++)
+	{
+		var nextPosition = new THREE.Vector3();
+		
+		nextPosition.x = newPath[i][0] * WOLRD_TILE_SIZE;
+		nextPosition.y = newPath[i][1] * WOLRD_TILE_SIZE;
+		
+		addMarker(nextPosition, 0x00ff00, true);
+		player.addPath(nextPosition);
+	}
 }
 
 function addMarker(position, color, drawLine)
@@ -290,56 +359,43 @@ function deleteTempObjects()
 
 function createRandomDungeon()
 {
+	var tempMatrix = [];
+
 	Dungeon.Generate();
+	DungeonStructures.tileSize = WOLRD_TILE_SIZE;
+	grid = new PF.Grid(128, 128);
 
 	for (var x = 0; x < Dungeon.map_size; x++) 
-	{
-		grid[x] = [];	
+	{	
         for (var y = 0; y < Dungeon.map_size; y++)
         {
         	var tile = Dungeon.map[x][y];
 
         	if (tile == 1)
         	{
-        		createGround(x, y, 100, 100);
-        		grid[x][y] = 0;
+        		var groundTile = DungeonStructures.CreateGround(x, y, 100, 100);
+				ground.push( groundTile );
+				scene.add( groundTile );
         	}
         	else if (tile == 2)
         	{
-        		createWall(x, y);
-        		grid[x][y] = 1;
+        		var wallTile = DungeonStructures.CreateWall(x, y);
+        		world.push( wallTile );
+        		scene.add( wallTile );
+
+        		grid.setWalkableAt(x, y, false);
         	}
-        	else
+        	else if (tile == 0)
         	{
-        		grid[x][y] = 1;
+        		grid.setWalkableAt(x, y, false);
         	}
         }
     }
 
-}
-
-function createWall(x, y)
-{
-	var geometry = new THREE.CubeGeometry( WOLRD_TILE_SIZE, WOLRD_TILE_SIZE, WOLRD_TILE_SIZE / 2 );
-	var material = new THREE.MeshLambertMaterial( {color: 0x778899} );
-	var wall = new THREE.Mesh( geometry, material );
-
-	wall.position.x = x * WOLRD_TILE_SIZE;
-	wall.position.y = y * WOLRD_TILE_SIZE;
-
-	world.push( wall );
-	scene.add( wall );
-}
-
-function createGround(x, y, w, h)
-{
-	var geometry = new THREE.PlaneGeometry( w, h, 1 );
-	var material = new THREE.MeshLambertMaterial( {color: 0xffff00, side: THREE.DoubleSide} );
-	var plane = new THREE.Mesh( geometry, material );
-
-	plane.position.x = x * WOLRD_TILE_SIZE;
-	plane.position.y = y * WOLRD_TILE_SIZE;
-	scene.add( plane );
+    finder = new PF.AStarFinder({
+    	allowDiagonal: false,
+	    dontCrossCorners: true
+	});
 }
 
 function animate()
